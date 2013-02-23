@@ -7,7 +7,7 @@ class Maze:
         self.width = width
         self.height = height
         self.cells = self.create_blank()
-        self.create_bfs()
+        self.create_dfs()
 
     def create_blank(self):
         return [[self.create_cell(x, y) for y in range(self.height)] for x in range(self.width)]
@@ -15,7 +15,7 @@ class Maze:
     def create_cell(self, x, y):
         return {'visited': 0, 'x': x, 'y': y, 'neighbors': [1, 1, 1, 1]}
 
-    def create_bfs(self):
+    def create_dfs(self):
         self.create_maze(self.cells[0][0])
         # remove walls from maze entry ...
         self.remove_wall(self.cells[0][0], 0)

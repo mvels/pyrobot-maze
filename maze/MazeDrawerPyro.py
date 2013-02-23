@@ -14,7 +14,7 @@ class MazeDrawerPyro:
 
     def draw_line(self, x1, y1, x2, y2):
         self.sim.addWall(x1, y1, x2, y2)
-        #self.sim.addBox(x1 - .0, y1 - .0, x2 + .0, y2 + .0)
+        #self.sim.addBox(x1 - .05, y1 - .05, x2 + .05, y2 + .05, "black")
 
     def draw_borders(self):
         offset = self.offset / 2.0

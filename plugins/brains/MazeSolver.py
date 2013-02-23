@@ -8,10 +8,11 @@ except ImportError:
 
 class MazeSolver(Brain):
     def setup(self):
+        self.debug = True
         self.dist = 0.25
         self.side_wall_dist = 0.7
         self.speed = 0.3
-        self.degree = 0.5 # 10 degrees?
+        self.degree = 0.3 # 10 degrees?
         self.target_degree = 0.0
         self.rotating = False
         self.parallel = False
@@ -23,6 +24,21 @@ class MazeSolver(Brain):
         self.max_parallel_checks = 50
         self.translation = 0
         self.side_wall_correction_done = False
+        self.current_message = ""
+        self.message_shown_steps = 0
+        self.max_message_show_steps = 20
+
+    def set_message(self, message, max_steps = 20):
+        self.current_message = message
+        self.message_shown_steps = 0
+        self.max_message_show_steps = max_steps
+
+    def show_message(self):
+        if self.message_shown_steps > self.max_message_show_steps:
+            self.set_message("")
+        if self.message_shown_steps == 0:
+            self.robot.speech[0].say(self.current_message)
+        self.message_shown_steps += 1
 
     def get_min_distance(self, range_name):
         range = self.robot.range[range_name]
@@ -46,6 +62,10 @@ class MazeSolver(Brain):
 
         return target_degree
 
+    def show_debug(self, *args):
+        if self.debug:
+            print args
+
     def determineMove(self):
         translation = 0.0
         rotate = 0.0
@@ -53,34 +73,26 @@ class MazeSolver(Brain):
         # check if there is a wall in front
         if self.front < self.dist:
             self.left_side_open = False
-#            if self.leftFront < self.dist:
-#                rotate = -1.0 * self.degree
-#                self.target_degree = self.find_target_degree(-10.0)
-#                print "got too close to the wall on the left, correcting by 10 degrees"
             # check if there is no wall in left
             if self.is_left_side_open():
                 rotate = self.degree
                 self.target_degree = self.find_target_degree(90.0)
-                print "left side open", self.target_degree
+                self.set_message("Front blocked, Left open, rotate 90")
+                self.show_debug("left side open", self.target_degree)
             # check if there is no wall in right
             elif self.is_right_side_open():
                 rotate = self.degree * -1.0
                 self.target_degree = self.find_target_degree(-90.0)
-                print "right side open", self.target_degree
+                self.set_message("Front blocked, Right open, rotate 90")
+                self.show_debug("right side open", self.target_degree)
             # walls on left and right, turn around
             else:
                 rotate = self.degree
                 self.target_degree = self.find_target_degree(180.0)
-                print "turn around", self.target_degree
-
-        # elif self.leftFront < self.dist:
-        #     rotate = -0.1
-        #     translation = 0.1
-        #     self.target_degree = self.find_target_degree(5.0)
-        #     print "too close to the left edge, rotate by 5 degrees"
+                self.set_message("All blocked, turn around")
+                self.show_debug("turn around", self.target_degree)
         elif self.left_side_open:
             if abs(self.robot_x - self.robot.x) > 0.8 or abs(self.robot_y - self.robot.y) > 0.8:
-                translation = 0.0
                 self.left_side_open = False
             else:
                 translation = self.speed
@@ -88,7 +100,8 @@ class MazeSolver(Brain):
         elif self.is_left_side_open():
             rotate = self.degree
             self.target_degree = self.find_target_degree(90.0)
-            print "front free, left free", self.target_degree
+            self.set_message("Left open, rotate 90")
+            self.show_debug("front free, left free", self.target_degree)
         # if wall on left and no wall in front, move forward
         else:
             translation = self.speed
@@ -106,7 +119,6 @@ class MazeSolver(Brain):
 
     def is_target_degree_achieved(self):
         degree_diff = max(self.robot.th, self.target_degree) - min(self.robot.th, self.target_degree)
-        # print "degree diff: ", degree_diff
         return degree_diff <= 3.0
 
     def is_parallel(self):
@@ -139,12 +151,9 @@ class MazeSolver(Brain):
         if self.side_wall_correction_done:
             return False
         if self.leftFront < self.dist:
-            print "too close to left wall"
             return True
         elif self.rightFront < self.dist:
-            print "too close to right wall"
             return True
-
         return False
 
     def step(self):
@@ -152,6 +161,7 @@ class MazeSolver(Brain):
 
         if self.rotating:
             if self.is_target_degree_achieved():
+                self.set_message("Rotation finished", 5)
                 self.rotating = False
                 self.parallel = False
                 self.target_degree = 0
@@ -164,20 +174,19 @@ class MazeSolver(Brain):
             if not self.is_parallel():
                 self.parallel_checks += 1
                 if self.parallel_checks > self.max_parallel_checks:
-                    print "max checks exceeded, moving a bit forward"
                     self.parallel_checks = 0
                     self.robot.move(0.1, 0.0)
                 else:
                     rotate = self.get_rotate_for_parallel()
                     self.robot.move(0.0, rotate)
             elif not self.side_wall_correction_done and self.is_too_close_to_side_wall():
-                print "too close to side wall"
                 if self.leftFront < self.dist:
                     rotate = -1.0 * 0.1
                 else:
                     rotate = 1.0 * 0.1
                 self.robot.move(0, rotate)
                 self.side_wall_correction_done = True
+                self.set_message("Too close to wall", 5)
             else:
                 self.translation, self.rotate = self.determineMove()
                 self.rotating = self.rotate != 0
@@ -185,10 +194,12 @@ class MazeSolver(Brain):
                 self.step_count += 1
                 # toggle check for parallel after each n steps
                 if self.step_count > self.parallel_check_steps:
-                    print "step count exceeded, need parallel check"
+                    self.set_message("Check if parallel", 5)
                     self.step_count = 0
                     self.parallel = False
                     self.side_wall_correction_done = False
+
+        self.show_message()
 
 
 
